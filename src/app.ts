@@ -1,3 +1,3 @@
-import express, { Application } from "express";
+import express, { Express } from "express";
 
-export const app: Application = express();
+export const app: Express = express();
