@@ -12,6 +12,11 @@ interface FileRequest {
   files: { avatar: { path: string }[]; coverImage: { path: string }[] };
 }
 
+const cookieOptions = {
+  httpOnly: true,
+  secure: true,
+};
+
 const SignupUser = AsyncWrapper(async (req: FileRequest, res: Response) => {
   const { userName, email, fullName, passwordHash, bio } = req.body;
 
@@ -106,11 +111,6 @@ const SigninUser = AsyncWrapper(async (req: Request, res: Response) => {
     "-passwordHash -refreshToken"
   );
 
-  const cookieOptions = {
-    httpOnly: true,
-    secure: true,
-  };
-
   return res
     .status(200)
     .cookie("accessToken", accessToken, cookieOptions)
@@ -124,4 +124,26 @@ const SigninUser = AsyncWrapper(async (req: Request, res: Response) => {
     );
 });
 
-export { SigninUser, SignupUser };
+const LogoutUser = AsyncWrapper(async (req: Request, res: Response) => {
+  const { user } = req.body as { user: UserOptions };
+
+  await UserModel.findByIdAndUpdate(
+    user._id,
+    {
+      $unset: {
+        refreshToken: 1, // 1 means it removes the field from document as we passed it in unset clause
+      },
+    },
+    {
+      new: true, // this returns the updated doc rather than older doc before update
+    }
+  );
+
+  return res
+    .status(200)
+    .clearCookie("accessToken", cookieOptions)
+    .clearCookie("refreshToken", cookieOptions)
+    .json(new ApiResponse(200, "User logged out successfully ..", {}));
+});
+
+export { LogoutUser, SigninUser, SignupUser };
