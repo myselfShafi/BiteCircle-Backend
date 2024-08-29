@@ -1,10 +1,11 @@
-import { Response } from "express";
+import { Request, Response } from "express";
 import { UploadMediaToCloudinary } from "../config/cloudinary";
 import { UserOptions } from "../config/types";
 import { UserModel } from "../models/users.model";
 import ApiError from "../utils/helpers/ApiError";
 import ApiResponse from "../utils/helpers/ApiResponse";
 import AsyncWrapper from "../utils/helpers/AsyncWrapper";
+import { GenerateAccessAndRefreshTokens } from "../utils/tokens";
 
 interface FileRequest {
   body: UserOptions;
@@ -71,7 +72,56 @@ const SignupUser = AsyncWrapper(async (req: FileRequest, res: Response) => {
 
   return res
     .status(201)
-    .json(new ApiResponse(200, "User registered Successfully", getUser));
+    .json(new ApiResponse(200, "User registered Successfully ..", getUser));
 });
 
-export { SignupUser };
+const SigninUser = AsyncWrapper(async (req: Request, res: Response) => {
+  const { email, passwordHash }: UserOptions = req.body;
+
+  //check for creds
+  if (!(email || passwordHash)) {
+    throw new ApiError(400, "Email and Password are required!");
+  }
+
+  // validate if user exists
+  const isExistingUser = await UserModel.findOne({ email });
+
+  if (!isExistingUser) {
+    throw new ApiError(404, "User does not exist");
+  }
+
+  // decode password
+  const doesPasswordMatch = await isExistingUser.checkPassword(passwordHash);
+
+  if (!doesPasswordMatch) {
+    throw new ApiError(401, "Invalid password!");
+  }
+
+  // generate access/refresh tokens
+  const { accessToken, refreshToken } = await GenerateAccessAndRefreshTokens(
+    isExistingUser._id
+  );
+
+  const getUser = await UserModel.findById(isExistingUser._id).select(
+    "-passwordHash -refreshToken"
+  );
+
+  const cookieOptions = {
+    httpOnly: true,
+    secure: true,
+  };
+
+  return res
+    .status(200)
+    .cookie("accessToken", accessToken, cookieOptions)
+    .cookie("refreshToken", refreshToken, cookieOptions)
+    .json(
+      new ApiResponse(200, "User loggedin successfully ..", {
+        user: getUser,
+        accessToken, // for mobile apps cookies aren't there, so passing as data as well
+        refreshToken,
+      })
+    );
+});
+
+export { SigninUser, SignupUser };

@@ -2,7 +2,7 @@ import bcrypt from "bcrypt";
 import { model, Schema } from "mongoose";
 import { UserOptions } from "../config/types";
 
-const userSchema = new Schema<UserOptions>(
+const userSchema: Schema<UserOptions> = new Schema(
   {
     userName: {
       type: Schema.Types.String,
@@ -38,6 +38,9 @@ const userSchema = new Schema<UserOptions>(
     bio: {
       type: Schema.Types.String,
     },
+    refreshToken: {
+      type: Schema.Types.String,
+    },
   },
   { timestamps: true }
 );
@@ -52,7 +55,9 @@ userSchema.pre("save", async function (next) {
   next();
 });
 
-userSchema.methods.checkPassword = async function (password: string) {
+userSchema.methods.checkPassword = async function (
+  password: string
+): Promise<boolean> {
   return await bcrypt.compare(password, this.passwordHash);
 };
 
