@@ -1,15 +1,19 @@
 import multer, { StorageEngine } from "multer";
 
 const storage: StorageEngine = multer.diskStorage({
-  destination: (_, __, cb: (error: Error | null, filename: string) => void) => {
+  destination: function (
+    _,
+    __,
+    cb: (error: Error | null, filename: string) => void
+  ) {
     cb(null, "./public/temp-media");
   },
-  filename: (
+  filename: function (
     _,
     file: Express.Multer.File,
     cb: (error: Error | null, filename: string) => void
-  ) => {
-    cb(null, `biteCircle - ` + file.originalname);
+  ) {
+    cb(null, `biteCircle - ` + Date.now() + file.originalname);
   },
 });
 
