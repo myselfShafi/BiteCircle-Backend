@@ -1,5 +1,9 @@
 import { Request, Response } from "express";
-import { UploadMediaToCloudinary } from "../config/cloudinary";
+import { FileUpload } from "../../types";
+import {
+  DeleteMediaFromCloudinary,
+  UploadMediaToCloudinary,
+} from "../config/cloudinary";
 import { UserOptions } from "../config/types";
 import { UserModel } from "../models/users.model";
 import ApiError from "../utils/helpers/ApiError";
@@ -7,17 +11,12 @@ import ApiResponse from "../utils/helpers/ApiResponse";
 import AsyncWrapper from "../utils/helpers/AsyncWrapper";
 import { GenerateAccessAndRefreshTokens } from "../utils/tokens";
 
-interface FileRequest {
-  body: UserOptions;
-  files: { avatar: { path: string }[]; coverImage: { path: string }[] };
-}
-
 const cookieOptions = {
   httpOnly: true,
   secure: true,
 };
 
-const SignupUser = AsyncWrapper(async (req: FileRequest, res: Response) => {
+const SignupUser = AsyncWrapper(async (req: Request, res: Response) => {
   const { userName, email, fullName, passwordHash, bio } = req.body;
 
   // validating - not empty
@@ -39,17 +38,17 @@ const SignupUser = AsyncWrapper(async (req: FileRequest, res: Response) => {
   }
 
   // check for avatar, optional - display upload screen for new user registers
+  const files = req.files as FileUpload;
+  const avatarPath = files?.avatar?.[0]?.path;
+  const coverImagePath = files?.coverImage?.[0]?.path;
 
-  const avatarPath = req.files?.avatar?.[0]?.path;
-  const coverImagePath = req.files?.coverImage?.[0]?.path;
-
-  let avatarURL, coverImageURL;
+  let avatarFile, coverImageFile;
 
   if (avatarPath) {
-    avatarURL = await UploadMediaToCloudinary(avatarPath);
+    avatarFile = await UploadMediaToCloudinary(avatarPath);
   }
   if (coverImagePath) {
-    coverImageURL = await UploadMediaToCloudinary(coverImagePath);
+    coverImageFile = await UploadMediaToCloudinary(coverImagePath);
   }
 
   // upload user to mongodb
@@ -58,8 +57,8 @@ const SignupUser = AsyncWrapper(async (req: FileRequest, res: Response) => {
     email,
     fullName,
     passwordHash,
-    avatar: avatarURL,
-    coverImage: coverImageURL,
+    avatar: avatarFile,
+    coverImage: coverImageFile,
     bio,
   });
 
@@ -77,7 +76,9 @@ const SignupUser = AsyncWrapper(async (req: FileRequest, res: Response) => {
 
   return res
     .status(201)
-    .json(new ApiResponse(200, "User registered Successfully ..", getUser));
+    .json(
+      new ApiResponse(200, "User registered Successfully ..", { user: getUser })
+    );
 });
 
 const SigninUser = AsyncWrapper(async (req: Request, res: Response) => {
@@ -125,10 +126,8 @@ const SigninUser = AsyncWrapper(async (req: Request, res: Response) => {
 });
 
 const LogoutUser = AsyncWrapper(async (req: Request, res: Response) => {
-  const { user } = req.body as { user: UserOptions };
-
   await UserModel.findByIdAndUpdate(
-    user._id,
+    req.user?._id,
     {
       $unset: {
         refreshToken: 1, // 1 means it removes the field from document as we passed it in unset clause
@@ -146,4 +145,131 @@ const LogoutUser = AsyncWrapper(async (req: Request, res: Response) => {
     .json(new ApiResponse(200, "User logged out successfully ..", {}));
 });
 
-export { LogoutUser, SigninUser, SignupUser };
+const UpdateUser = AsyncWrapper(async (req: Request, res: Response) => {
+  const { fullName, bio }: UserOptions = req.body;
+
+  // if user tries to send empty field
+  if (fullName === "" || bio === "") {
+    throw new ApiError(400, "All fields are required");
+  }
+
+  const getUserToUpdate = await UserModel.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        fullName,
+        bio,
+      },
+    },
+    {
+      new: true,
+    }
+  ).select("-passwordHash");
+
+  return res.status(200).json(
+    new ApiResponse(200, "User Updated successfully ..", {
+      user: getUserToUpdate,
+    })
+  );
+});
+
+const UpdateAvatar = AsyncWrapper(async (req: Request, res: Response) => {
+  const avatarPath = req.file?.path;
+
+  if (!avatarPath) {
+    const previousUser = await UserModel.findById(req.user?._id).select(
+      "-passwordHash"
+    );
+
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        "No changes made to avatar. Displaying existing one.",
+        {
+          user: previousUser, // Return previous user with existing avatar
+        }
+      )
+    );
+  }
+
+  const updateAvatar = await UploadMediaToCloudinary(avatarPath);
+
+  // update database with new avatar data
+  const getUserToUpdate = await UserModel.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        avatar: updateAvatar,
+      },
+    },
+    {
+      new: true,
+    }
+  ).select("-passwordHash");
+
+  // remove previous avatar
+  if (updateAvatar && req.user) {
+    await DeleteMediaFromCloudinary(req.user?.avatar.publicId);
+  }
+
+  return res.status(200).json(
+    new ApiResponse(200, "User Avatar Updated successfully ..", {
+      user: getUserToUpdate,
+    })
+  );
+});
+
+const UpdateCoverImage = AsyncWrapper(async (req: Request, res: Response) => {
+  const coverImagePath = req.file?.path;
+
+  if (!coverImagePath) {
+    const previousUser = await UserModel.findById(req.user?._id).select(
+      "-passwordHash"
+    );
+
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        "No changes made to avatar. Displaying existing one.",
+        {
+          user: previousUser, // Return previous user with existing avatar
+        }
+      )
+    );
+  }
+
+  const updateCoverImage = await UploadMediaToCloudinary(coverImagePath);
+
+  // update database with new avatar data
+  const getUserToUpdate = await UserModel.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        coverImage: updateCoverImage,
+      },
+    },
+    {
+      new: true,
+    }
+  ).select("-passwordHash");
+
+  // remove previous avatar
+  if (updateCoverImage && req.user) {
+    await DeleteMediaFromCloudinary(req.user?.coverImage.publicId);
+  }
+
+  return res.status(200).json(
+    new ApiResponse(200, "User CoverImage Updated successfully ..", {
+      user: getUserToUpdate,
+    })
+  );
+});
+
+export {
+  LogoutUser,
+  SigninUser,
+  SignupUser,
+  UpdateAvatar,
+  UpdateCoverImage,
+  UpdateUser,
+};

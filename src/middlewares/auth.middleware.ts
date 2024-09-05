@@ -29,7 +29,11 @@ const VerifyUserCookies = AsyncWrapper(
       decodedToken?._id
     ).select("-password -refreshToken");
 
-    req.body.user = getTokenAssignedUser;
+    if (!getTokenAssignedUser) {
+      throw new ApiError(404, "User with this token not found");
+    }
+
+    req.user = getTokenAssignedUser;
     next();
   }
 );

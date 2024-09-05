@@ -4,6 +4,7 @@
     "module": "CommonJS",
     "outDir": "./dist",
     "rootDir": "./src", 
+    "declaration": true,
     "removeComments": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
@@ -16,6 +17,9 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noImplicitReturns": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "typeRoots": ["./types", "./node_modules/@types"]
   },
+  "include": ["./src/**/*.ts", "./types/**/*.d.ts"],
+  "exclude": ["./dist"]
 }

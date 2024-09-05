@@ -3,6 +3,9 @@ import {
   LogoutUser,
   SigninUser,
   SignupUser,
+  UpdateAvatar,
+  UpdateCoverImage,
+  UpdateUser,
 } from "../controllers/users.controller";
 import VerifyUserCookies from "../middlewares/auth.middleware";
 import handleUpload from "../middlewares/multer";
@@ -18,7 +21,13 @@ userRouter.route("/signup").post(
 );
 
 userRouter.route("/login").post(SigninUser);
-
 userRouter.route("/logout").post(VerifyUserCookies, LogoutUser);
+userRouter.route("/update").post(VerifyUserCookies, UpdateUser);
+userRouter
+  .route("/edit-avatar")
+  .post(VerifyUserCookies, handleUpload.single("avatar"), UpdateAvatar);
+userRouter
+  .route("/edit-coverImage")
+  .post(VerifyUserCookies, handleUpload.single("coverImage"), UpdateCoverImage);
 
 export default userRouter;
