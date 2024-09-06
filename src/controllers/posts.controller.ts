@@ -45,10 +45,30 @@ const createPost = AsyncWrapper(async (req: Request, res: Response) => {
   }
 
   return res
+    .status(201)
+    .json(new ApiResponse(201, "Post created successfully ..", addNewPost));
+});
+
+const fetchUserAllPosts = AsyncWrapper(async (req: Request, res: Response) => {
+  const { userId } = req.params;
+
+  console.log({ userId });
+
+  if (!userId) {
+    throw new ApiError(400, "user ID not provided!");
+  }
+
+  const getUserPosts = await PostModel.find({ owner: userId });
+
+  if (!getUserPosts) {
+    throw new ApiError(400, "Failed to fetch User's posts!");
+  }
+
+  return res
     .status(200)
     .json(
-      new ApiResponse(200, "Post created successfully ..", { post: addNewPost })
+      new ApiResponse(200, "fetched all posts successfully ..", getUserPosts)
     );
 });
 
-export { createPost };
+export { createPost, fetchUserAllPosts };

@@ -76,9 +76,7 @@ const SignupUser = AsyncWrapper(async (req: Request, res: Response) => {
 
   return res
     .status(201)
-    .json(
-      new ApiResponse(200, "User registered Successfully ..", { user: getUser })
-    );
+    .json(new ApiResponse(200, "User registered Successfully ..", getUser));
 });
 
 const SigninUser = AsyncWrapper(async (req: Request, res: Response) => {
