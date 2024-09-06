@@ -27,7 +27,7 @@ const VerifyUserCookies = AsyncWrapper(
 
     const getTokenAssignedUser = await UserModel.findById(
       decodedToken?._id
-    ).select("-password -refreshToken");
+    ).select("-passwordHash -refreshToken");
 
     if (!getTokenAssignedUser) {
       throw new ApiError(404, "User with this token not found");

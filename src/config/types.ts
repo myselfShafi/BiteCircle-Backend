@@ -17,3 +17,21 @@ export interface UserOptions extends Document {
   refreshToken: string;
   checkPassword(password: string): Promise<boolean>;
 }
+
+export interface PostOptions extends Document {
+  _id: Types.ObjectId;
+  owner: UserOptions;
+  media: MediaOptions[];
+  caption: string;
+}
+
+export interface LocalFileType {
+  fieldname: string;
+  originalname: string;
+  encoding: string;
+  mimetype: string;
+  destination: string;
+  filename: string;
+  path: string;
+  size: number;
+}
