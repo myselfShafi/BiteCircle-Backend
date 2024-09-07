@@ -31,6 +31,12 @@ export interface CommentOptions extends Document {
   ownerId: UserOptions;
   content: string;
 }
+
+export interface LikeOptions extends Document {
+  _id: Types.ObjectId;
+  postId: PostOptions;
+  ownerId: UserOptions;
+}
 export interface LocalFileType {
   fieldname: string;
   originalname: string;

@@ -2,6 +2,7 @@ import { model, Schema } from "mongoose";
 import { CommentOptions, PostOptions } from "../config/types";
 import { CommentModel } from "./comments.model";
 import { MediaSchema } from "./common/common.model";
+import { LikeModel } from "./likes.model";
 
 const postSchema: Schema<PostOptions> = new Schema(
   {
@@ -25,6 +26,7 @@ const postSchema: Schema<PostOptions> = new Schema(
 postSchema.post("findOneAndDelete", async function (doc: CommentOptions) {
   if (doc) {
     await CommentModel.deleteMany({ postId: doc._id });
+    await LikeModel.deleteMany({ postId: doc._id });
   }
 });
 

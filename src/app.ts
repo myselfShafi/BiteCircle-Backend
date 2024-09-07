@@ -13,9 +13,11 @@ app.use(static_("public")); // to serve static files, such as HTML/CSS/JS/Images
 app.use(cookieParser()); // Parse Cookie header and populate req.cookies with an object keyed by the cookie names
 
 import commentRouter from "./routers/comments.route";
+import LikeRouter from "./routers/likes.route";
 import postRouter from "./routers/posts.route";
 import userRouter from "./routers/users.route";
 
 app.use("/api/users", userRouter);
 app.use("/api/posts", postRouter);
 app.use("/api/comments", commentRouter);
+app.use("/api/likes", LikeRouter);
