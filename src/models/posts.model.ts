@@ -1,8 +1,9 @@
 import { model, Schema } from "mongoose";
-import { PostOptions } from "../config/types";
+import { CommentOptions, PostOptions } from "../config/types";
+import { CommentModel } from "./comments.model";
 import { MediaSchema } from "./common/common.model";
 
-const PostSchema: Schema<PostOptions> = new Schema(
+const postSchema: Schema<PostOptions> = new Schema(
   {
     owner: {
       type: Schema.Types.ObjectId,
@@ -21,4 +22,10 @@ const PostSchema: Schema<PostOptions> = new Schema(
   { timestamps: true }
 );
 
-export const PostModel = model<PostOptions>("Post", PostSchema);
+postSchema.post("findOneAndDelete", async function (doc: CommentOptions) {
+  if (doc) {
+    await CommentModel.deleteMany({ postId: doc._id });
+  }
+});
+
+export const PostModel = model<PostOptions>("Post", postSchema);

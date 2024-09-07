@@ -25,6 +25,12 @@ export interface PostOptions extends Document {
   caption: string;
 }
 
+export interface CommentOptions extends Document {
+  _id: Types.ObjectId;
+  postId: PostOptions;
+  ownerId: UserOptions;
+  content: string;
+}
 export interface LocalFileType {
   fieldname: string;
   originalname: string;

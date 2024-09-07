@@ -175,6 +175,7 @@ const deletePost = AsyncWrapper(async (req: Request, res: Response) => {
     throw new ApiError(500, "Failed to delete post!");
   }
 
+  // deletion of all its related comments handled by post middleware hook in models
   return res
     .status(201)
     .json(new ApiResponse(201, "Post deleted successfully ..", {}));
