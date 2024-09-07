@@ -1,6 +1,9 @@
 import { Request, Response } from "express";
 import pLimit from "p-limit"; //using v3.1.0 due to ESM conflicts
-import { UploadMediaToCloudinary } from "../config/cloudinary";
+import {
+  DeleteMediaFromCloudinary,
+  UploadMediaToCloudinary,
+} from "../config/cloudinary";
 import { LocalFileType, PostOptions } from "../config/types";
 import { PostModel } from "../models/posts.model";
 import ApiError from "../utils/helpers/ApiError";
@@ -9,6 +12,38 @@ import AsyncWrapper from "../utils/helpers/AsyncWrapper";
 
 const limit = pLimit(10);
 
+const concurrentlyUploadMediaToCloudinary = async (files: LocalFileType[]) => {
+  try {
+    const allMediaPaths = files?.map((list: LocalFileType) => list.path);
+
+    const uploadAllFiles = allMediaPaths.map((path: string) => {
+      return limit(async () => {
+        return await UploadMediaToCloudinary(path);
+      });
+    });
+
+    return await Promise.all(uploadAllFiles);
+  } catch (error) {
+    throw new ApiError(500, "Failed to bulk-save media to cloudinary!" + error);
+  }
+};
+
+const concurrentlyDeleteMediaFromCloudinary = async (publicIds: string[]) => {
+  try {
+    const RemoveAllFiles = publicIds.map((id: string) => {
+      return limit(async () => {
+        return await DeleteMediaFromCloudinary(id);
+      });
+    });
+    return await Promise.all(RemoveAllFiles);
+  } catch (error) {
+    throw new ApiError(
+      500,
+      "Failed to bulk-delete media from cloudinary!" + error
+    );
+  }
+};
+
 const createPost = AsyncWrapper(async (req: Request, res: Response) => {
   const { caption }: PostOptions = req.body;
 
@@ -16,23 +51,9 @@ const createPost = AsyncWrapper(async (req: Request, res: Response) => {
     throw new ApiError(400, "Content or Caption is missing!");
   }
 
-  const allMediaPaths =
+  const uploads =
     Array.isArray(req.files) &&
-    req.files?.map((list: LocalFileType) => list.path);
-
-  const uploadAllFiles = Array.isArray(allMediaPaths)
-    ? allMediaPaths.map((path: string) => {
-        return limit(async () => {
-          return await UploadMediaToCloudinary(path);
-        });
-      })
-    : [];
-
-  let uploads = await Promise.all(uploadAllFiles);
-
-  if (uploads.length === 0) {
-    throw new ApiError(500, "Failed to upload post content!");
-  }
+    (await concurrentlyUploadMediaToCloudinary(req.files));
 
   const addNewPost = await PostModel.create({
     owner: req.user?._id,
@@ -52,8 +73,6 @@ const createPost = AsyncWrapper(async (req: Request, res: Response) => {
 const fetchUserAllPosts = AsyncWrapper(async (req: Request, res: Response) => {
   const { userId } = req.params;
 
-  console.log({ userId });
-
   if (!userId) {
     throw new ApiError(400, "user ID not provided!");
   }
@@ -71,4 +90,58 @@ const fetchUserAllPosts = AsyncWrapper(async (req: Request, res: Response) => {
     );
 });
 
-export { createPost, fetchUserAllPosts };
+const editPost = AsyncWrapper(async (req: Request, res: Response) => {
+  const {
+    caption,
+    deletedMediaId,
+  }: { caption: string; deletedMediaId: string[] } = req.body;
+  const { postId } = req.params;
+
+  if (!caption) {
+    throw new ApiError(400, "Caption is missing!");
+  }
+
+  const deleteFromCloudinary =
+    await concurrentlyDeleteMediaFromCloudinary(deletedMediaId);
+
+  if (deleteFromCloudinary) {
+    await PostModel.findByIdAndUpdate(postId, {
+      $pull: {
+        media: {
+          publicId: { $in: deletedMediaId },
+        },
+      },
+    });
+  }
+
+  const uploads =
+    Array.isArray(req.files) &&
+    (await concurrentlyUploadMediaToCloudinary(req.files));
+
+  const UpdatedPost = await PostModel.findByIdAndUpdate(
+    postId,
+    {
+      $set: {
+        caption,
+      },
+      $push: {
+        media: {
+          $each: uploads,
+        },
+      },
+    },
+    { new: true }
+  );
+
+  if (!UpdatedPost) {
+    throw new ApiError(500, "Failed to update the post!");
+  }
+
+  return res.status(200).json(
+    new ApiResponse(200, "Updated post successfully ..", {
+      post: UpdatedPost,
+    })
+  );
+});
+
+export { createPost, editPost, fetchUserAllPosts };
