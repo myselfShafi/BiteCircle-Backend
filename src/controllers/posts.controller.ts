@@ -4,7 +4,7 @@ import {
   DeleteMediaFromCloudinary,
   UploadMediaToCloudinary,
 } from "../config/cloudinary";
-import { LocalFileType, PostOptions } from "../config/types";
+import { LocalFileType, MediaOptions, PostOptions } from "../config/types";
 import { PostModel } from "../models/posts.model";
 import ApiError from "../utils/helpers/ApiError";
 import ApiResponse from "../utils/helpers/ApiResponse";
@@ -144,4 +144,32 @@ const editPost = AsyncWrapper(async (req: Request, res: Response) => {
   );
 });
 
-export { createPost, editPost, fetchUserAllPosts };
+const deletePost = AsyncWrapper(async (req: Request, res: Response) => {
+  const { postId } = req.params;
+
+  if (!postId) {
+    throw new ApiError(500, "Failed to delete post!");
+  }
+
+  const allMediaPublicIds = await PostModel.findById(postId).then((data) =>
+    data?.media.map((media: MediaOptions) => media.publicId)
+  );
+
+  if (!allMediaPublicIds) {
+    throw new ApiError(500, "Cannot get Post's media IDs!");
+  }
+
+  await concurrentlyDeleteMediaFromCloudinary(allMediaPublicIds);
+
+  const deletePost = await PostModel.findByIdAndDelete(postId);
+
+  if (!deletePost) {
+    throw new ApiError(500, "Failed to delete post!");
+  }
+
+  return res
+    .status(201)
+    .json(new ApiResponse(201, "Post deleted successfully ..", {}));
+});
+
+export { createPost, deletePost, editPost, fetchUserAllPosts };

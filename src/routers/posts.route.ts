@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   createPost,
+  deletePost,
   editPost,
   fetchUserAllPosts,
 } from "../controllers/posts.controller";
@@ -20,5 +21,7 @@ postRouter.route("/get-user-all-posts/:userId").get(fetchUserAllPosts);
 postRouter
   .route("/edit-post/:postId")
   .post(handleUpload.array("postMedia", 10), editPost);
+
+postRouter.route("/delete-post/:postId").post(deletePost);
 
 export default postRouter;
