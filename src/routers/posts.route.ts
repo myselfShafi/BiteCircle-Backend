@@ -17,14 +17,12 @@ postRouter
   .route("/create-post")
   .post(handleUpload.array("postMedia", 10), createPost); //max of 10 allowed/post
 
-postRouter.route("/get-post/:postId").get(fetchPost);
+postRouter
+  .route("/get-post/:postId")
+  .get(fetchPost)
+  .put(handleUpload.array("postMedia", 10), editPost)
+  .delete(deletePost);
 
 postRouter.route("/get-user-all-posts/:userId").get(fetchUserAllPosts);
-
-postRouter
-  .route("/edit-post/:postId")
-  .post(handleUpload.array("postMedia", 10), editPost);
-
-postRouter.route("/delete-post/:postId").post(deletePost);
 
 export default postRouter;

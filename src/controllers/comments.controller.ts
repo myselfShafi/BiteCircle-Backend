@@ -91,4 +91,29 @@ const deleteComment = AsyncWrapper(async (req: Request, res: Response) => {
     .json(new ApiResponse(201, "Comment deleted successfully ..", {}));
 });
 
-export { createComment, deleteComment, getAllComments };
+const editComment = AsyncWrapper(async (req: Request, res: Response) => {
+  const { content }: CommentOptions = req.body;
+  const { commentId } = req.params;
+  if (!commentId || !content) {
+    throw new ApiError(400, "Content or Comment Id is required!");
+  }
+
+  const update = await CommentModel.findByIdAndUpdate(
+    commentId,
+    {
+      $set: {
+        content,
+      },
+    },
+    { new: true }
+  );
+  if (!update) {
+    throw new ApiError(500, "Failed to update the comment!");
+  }
+
+  return res
+    .status(201)
+    .json(new ApiResponse(201, "Comment updated successfully ..", update));
+});
+
+export { createComment, deleteComment, editComment, getAllComments };
