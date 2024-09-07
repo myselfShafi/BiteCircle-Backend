@@ -15,7 +15,6 @@ const limit = pLimit(10);
 const concurrentlyUploadMediaToCloudinary = async (files: LocalFileType[]) => {
   try {
     const allMediaPaths = files?.map((list: LocalFileType) => list.path);
-
     const uploadAllFiles = allMediaPaths.map((path: string) => {
       return limit(async () => {
         return await UploadMediaToCloudinary(path);
@@ -35,6 +34,7 @@ const concurrentlyDeleteMediaFromCloudinary = async (publicIds: string[]) => {
         return await DeleteMediaFromCloudinary(id);
       });
     });
+
     return await Promise.all(RemoveAllFiles);
   } catch (error) {
     throw new ApiError(
@@ -60,7 +60,6 @@ const createPost = AsyncWrapper(async (req: Request, res: Response) => {
     media: uploads,
     caption,
   }).then((data) => data);
-
   if (!addNewPost) {
     throw new ApiError(500, "Failed to save post!");
   }
@@ -70,15 +69,29 @@ const createPost = AsyncWrapper(async (req: Request, res: Response) => {
     .json(new ApiResponse(201, "Post created successfully ..", addNewPost));
 });
 
+const fetchPost = AsyncWrapper(async (req: Request, res: Response) => {
+  const { postId } = req.params;
+  if (!postId) {
+    throw new ApiError(400, "Failed to get post data!");
+  }
+
+  const getPost = await PostModel.findById(postId);
+  if (!getPost) {
+    throw new ApiError(500, "Post not available!");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Post fetched successfully ..", getPost));
+});
+
 const fetchUserAllPosts = AsyncWrapper(async (req: Request, res: Response) => {
   const { userId } = req.params;
-
   if (!userId) {
     throw new ApiError(400, "user ID not provided!");
   }
 
   const getUserPosts = await PostModel.find({ owner: userId });
-
   if (!getUserPosts) {
     throw new ApiError(400, "Failed to fetch User's posts!");
   }
@@ -103,7 +116,6 @@ const editPost = AsyncWrapper(async (req: Request, res: Response) => {
 
   const deleteFromCloudinary =
     await concurrentlyDeleteMediaFromCloudinary(deletedMediaId);
-
   if (deleteFromCloudinary) {
     await PostModel.findByIdAndUpdate(postId, {
       $pull: {
@@ -132,7 +144,6 @@ const editPost = AsyncWrapper(async (req: Request, res: Response) => {
     },
     { new: true }
   );
-
   if (!UpdatedPost) {
     throw new ApiError(500, "Failed to update the post!");
   }
@@ -146,7 +157,6 @@ const editPost = AsyncWrapper(async (req: Request, res: Response) => {
 
 const deletePost = AsyncWrapper(async (req: Request, res: Response) => {
   const { postId } = req.params;
-
   if (!postId) {
     throw new ApiError(500, "Failed to delete post!");
   }
@@ -154,7 +164,6 @@ const deletePost = AsyncWrapper(async (req: Request, res: Response) => {
   const allMediaPublicIds = await PostModel.findById(postId).then((data) =>
     data?.media.map((media: MediaOptions) => media.publicId)
   );
-
   if (!allMediaPublicIds) {
     throw new ApiError(500, "Cannot get Post's media IDs!");
   }
@@ -162,7 +171,6 @@ const deletePost = AsyncWrapper(async (req: Request, res: Response) => {
   await concurrentlyDeleteMediaFromCloudinary(allMediaPublicIds);
 
   const deletePost = await PostModel.findByIdAndDelete(postId);
-
   if (!deletePost) {
     throw new ApiError(500, "Failed to delete post!");
   }
@@ -172,4 +180,4 @@ const deletePost = AsyncWrapper(async (req: Request, res: Response) => {
     .json(new ApiResponse(201, "Post deleted successfully ..", {}));
 });
 
-export { createPost, deletePost, editPost, fetchUserAllPosts };
+export { createPost, deletePost, editPost, fetchPost, fetchUserAllPosts };
