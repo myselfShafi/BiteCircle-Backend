@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  getChannelFollowers,
   getFollowingChannels,
   toggleFollowing,
 } from "../controllers/follows.controller";
@@ -11,7 +12,9 @@ followRouter.use(VerifyUserCookies);
 
 followRouter
   .route("/channel-follow/:channelId")
-  .get(getFollowingChannels)
+  .get(getChannelFollowers)
   .post(toggleFollowing);
+
+followRouter.route("/channel-follower/:followerUser").get(getFollowingChannels);
 
 export default followRouter;

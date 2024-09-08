@@ -38,13 +38,13 @@ const toggleFollowing = AsyncWrapper(async (req: Request, res: Response) => {
 
 const getFollowingChannels = AsyncWrapper(
   async (req: Request, res: Response) => {
-    const { channelId } = req.params;
-    if (!channelId) {
-      throw new ApiError(400, "Channel Id unavailable!");
+    const { followerUser } = req.params;
+    if (!followerUser) {
+      throw new ApiError(400, "Follower Id unavailable!");
     }
 
     const getChannels = await FollowModel.aggregate([
-      { $match: { followingId: new Types.ObjectId(channelId) } },
+      { $match: { followingId: new Types.ObjectId(followerUser) } },
       {
         $lookup: {
           from: "users", // collection name should match as per mongodb site, not schema
@@ -76,4 +76,44 @@ const getFollowingChannels = AsyncWrapper(
   }
 );
 
-export { getFollowingChannels, toggleFollowing };
+const getChannelFollowers = AsyncWrapper(
+  async (req: Request, res: Response) => {
+    const { channelId } = req.params;
+    if (!channelId) {
+      throw new ApiError(400, "Channel Id unavailable!");
+    }
+
+    const getFollowers = await FollowModel.aggregate([
+      { $match: { followerId: new Types.ObjectId(channelId) } },
+      {
+        $lookup: {
+          from: "users", // collection name should match as per mongodb site, not schema
+          localField: "followingId",
+          foreignField: "_id",
+          as: "followingUser",
+        },
+      },
+      {
+        $addFields: {
+          fullName: { $arrayElemAt: ["$followingUser.fullName", 0] },
+          avatar: { $arrayElemAt: ["$followingUser.avatar", 0] },
+        },
+      },
+      {
+        $project: {
+          fullName: 1,
+          avatar: 1,
+        },
+      },
+    ]);
+    if (!getFollowers) {
+      throw new ApiError(500, "Failed to get followers list!");
+    }
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, "fetched User followers..", getFollowers));
+  }
+);
+
+export { getChannelFollowers, getFollowingChannels, toggleFollowing };
