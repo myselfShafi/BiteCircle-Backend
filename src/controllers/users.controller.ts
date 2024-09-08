@@ -22,7 +22,7 @@ const SignupUser = AsyncWrapper(async (req: Request, res: Response) => {
   // validating - not empty
   if (
     [userName, email, fullName, passwordHash].some(
-      (list) => list?.trim() === ""
+      (field) => !field || field?.trim() === ""
     )
   ) {
     throw new ApiError(400, "All fields are required!");
@@ -32,7 +32,6 @@ const SignupUser = AsyncWrapper(async (req: Request, res: Response) => {
   const isExistingUser = await UserModel.findOne({
     $or: [{ userName }, { email }],
   });
-
   if (isExistingUser) {
     throw new ApiError(409, "Username or Email already registered!");
   }
@@ -51,16 +50,22 @@ const SignupUser = AsyncWrapper(async (req: Request, res: Response) => {
     coverImageFile = await UploadMediaToCloudinary(coverImagePath);
   }
 
+  let createUser;
+
   // upload user to mongodb
-  const createUser = await UserModel.create({
-    userName,
-    email,
-    fullName,
-    passwordHash,
-    avatar: avatarFile,
-    coverImage: coverImageFile,
-    bio,
-  });
+  try {
+    createUser = await UserModel.create({
+      userName,
+      email,
+      fullName,
+      passwordHash,
+      avatar: avatarFile,
+      coverImage: coverImageFile,
+      bio,
+    });
+  } catch (error) {
+    console.log("Mongo error ....", error);
+  }
 
   if (!createUser) {
     throw new ApiError(500, "Cannot register user! Try again.");
@@ -89,14 +94,12 @@ const SigninUser = AsyncWrapper(async (req: Request, res: Response) => {
 
   // validate if user exists
   const isExistingUser = await UserModel.findOne({ email });
-
   if (!isExistingUser) {
     throw new ApiError(404, "User does not exist");
   }
 
   // decode password
   const doesPasswordMatch = await isExistingUser.checkPassword(passwordHash);
-
   if (!doesPasswordMatch) {
     throw new ApiError(401, "Invalid password!");
   }

@@ -37,6 +37,12 @@ export interface LikeOptions extends Document {
   postId: PostOptions;
   ownerId: UserOptions;
 }
+
+export interface FollowOptions extends Document {
+  _id: Types.ObjectId;
+  followerId: UserOptions;
+  followingId: UserOptions;
+}
 export interface LocalFileType {
   fieldname: string;
   originalname: string;

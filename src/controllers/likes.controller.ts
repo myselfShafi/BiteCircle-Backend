@@ -10,20 +10,20 @@ const togglePostLike = AsyncWrapper(async (req: Request, res: Response) => {
     throw new ApiError(400, "Post Id unavailable!");
   }
 
-  const alreadyLiked = await LikeModel.find({
+  const alreadyLiked = await LikeModel.findOne({
     ownerId: req.user?._id,
     postId,
   });
 
   let togglePost;
 
-  if (alreadyLiked.length === 0) {
+  if (!alreadyLiked) {
     togglePost = await LikeModel.create({
       postId,
       ownerId: req.user?._id,
     });
   } else {
-    await LikeModel.findByIdAndDelete(alreadyLiked[0]?._id);
+    await LikeModel.findByIdAndDelete(alreadyLiked._id);
     togglePost = {};
   }
 

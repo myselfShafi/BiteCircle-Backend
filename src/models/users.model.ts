@@ -47,13 +47,17 @@ const userSchema: Schema<UserOptions> = new Schema(
 );
 
 userSchema.pre("save", async function (next) {
-  if (this.isModified("passwordHash")) {
-    this.passwordHash = await bcrypt.hash(this.passwordHash, 10);
+  try {
+    if (this.isModified("passwordHash")) {
+      this.passwordHash = await bcrypt.hash(this.passwordHash, 10);
+    }
+    if (this.isModified("userName") && this.userName) {
+      this.userName = this.userName.replace(/\s+/g, "_"); // replacing space with underscores
+    }
+    next();
+  } catch (error) {
+    console.log("password hashing error ..", error);
   }
-  if (this.isModified("userName")) {
-    this.userName = this.userName.replace(/\s+/g, "_"); // replacing space with underscores
-  }
-  next();
 });
 
 userSchema.methods.checkPassword = async function (
