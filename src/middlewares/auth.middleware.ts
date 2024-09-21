@@ -4,7 +4,7 @@ import { UserModel } from "../models/users.model";
 import ApiError from "../utils/helpers/ApiError";
 import AsyncWrapper from "../utils/helpers/AsyncWrapper";
 
-interface decodedTokenOptions extends JwtPayload {
+export interface decodedTokenOptions extends JwtPayload {
   _id: string;
   userName: string;
   email: string;

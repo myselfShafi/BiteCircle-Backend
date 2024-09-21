@@ -1,6 +1,8 @@
 import { Router } from "express";
 import {
+  getCurrentUser,
   LogoutUser,
+  regenerateAccessToken,
   SigninUser,
   SignupUser,
   UpdateAvatar,
@@ -29,5 +31,9 @@ userRouter
 userRouter
   .route("/edit-coverImage")
   .post(VerifyUserCookies, handleUpload.single("coverImage"), UpdateCoverImage);
+userRouter
+  .route("/authenticate-user")
+  .get(VerifyUserCookies, getCurrentUser)
+  .post(regenerateAccessToken);
 
 export default userRouter;

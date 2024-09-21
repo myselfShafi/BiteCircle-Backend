@@ -1,10 +1,12 @@
 import { Request, Response } from "express";
+import jwt from "jsonwebtoken";
 import { FileUpload } from "../../types";
 import {
   DeleteMediaFromCloudinary,
   UploadMediaToCloudinary,
 } from "../config/cloudinary";
 import { UserOptions } from "../config/types";
+import { decodedTokenOptions } from "../middlewares/auth.middleware";
 import { UserModel } from "../models/users.model";
 import ApiError from "../utils/helpers/ApiError";
 import ApiResponse from "../utils/helpers/ApiResponse";
@@ -266,8 +268,66 @@ const UpdateCoverImage = AsyncWrapper(async (req: Request, res: Response) => {
   );
 });
 
+const regenerateAccessToken = AsyncWrapper(
+  async (req: Request, res: Response) => {
+    let secret = process.env.REFRESH_TOKEN_SECRET;
+    const clientSavedRefreshToken =
+      req.cookies.refreshToken || req.body.refreshToken;
+
+    if (!(clientSavedRefreshToken && secret)) {
+      throw new ApiError(401, "Unauthorized Request!");
+    }
+
+    const decodedRefreshToken = jwt.verify(
+      clientSavedRefreshToken,
+      secret
+    ) as decodedTokenOptions;
+
+    const getUser = await UserModel.findById(decodedRefreshToken?._id);
+
+    if (!getUser) {
+      throw new ApiError(401, "Invalid Refresh token!");
+    }
+
+    if (clientSavedRefreshToken !== getUser.refreshToken) {
+      throw new ApiError(401, "Expired Refresh token!");
+    }
+
+    const { accessToken, refreshToken } = await GenerateAccessAndRefreshTokens(
+      getUser._id
+    );
+
+    return res
+      .status(200)
+      .cookie("accessToken", accessToken, cookieOptions)
+      .cookie("refreshToken", refreshToken, cookieOptions)
+      .json(
+        new ApiResponse(200, "User authenticated successfully ..", {
+          accessToken, // for mobile apps cookies aren't there, so passing as data as well
+          refreshToken,
+        })
+      );
+  }
+);
+
+const getCurrentUser = AsyncWrapper(async (req: Request, res: Response) => {
+  const user = await UserModel.findById(req.user?._id).select(
+    "-passwordHash -refreshToken"
+  );
+
+  if (!user) {
+    throw new ApiError(500, "User does not exist!");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "User fetched successfully ..", user));
+});
+
 export {
+  getCurrentUser,
   LogoutUser,
+  regenerateAccessToken,
   SigninUser,
   SignupUser,
   UpdateAvatar,
