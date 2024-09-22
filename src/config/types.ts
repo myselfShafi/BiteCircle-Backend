@@ -8,6 +8,7 @@ export interface MediaOptions {
 export interface UserOptions extends Document {
   _id: Types.ObjectId;
   userName: string;
+  isUsernameModified: boolean;
   email: string;
   fullName: string;
   passwordHash: string;
@@ -15,6 +16,7 @@ export interface UserOptions extends Document {
   coverImage: MediaOptions;
   bio: string;
   refreshToken: string;
+  isVerifiedEmail: boolean;
   checkPassword(password: string): Promise<boolean>;
 }
 

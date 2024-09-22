@@ -11,9 +11,16 @@ import handleMailSend from "../utils/mailSend";
 
 let otp = Math.floor(1000 + Math.random() * 9000).toString();
 
-const sendEmailVerifyMail = AsyncWrapper(
-  async (req: Request, res: Response) => {
-    const { email }: { email: string } = req.body;
+interface OtpVerifyProps {
+  email: string;
+  action: "VERIFY-EMAIL" | "PASS-RESET";
+}
+
+const sendEmailVerifyMail = async (
+  email: OtpVerifyProps["email"],
+  action: OtpVerifyProps["action"]
+) => {
+  try {
     if (!email || !email.includes("@")) {
       throw new ApiError(401, "Please enter correct Email!");
     }
@@ -27,22 +34,45 @@ const sendEmailVerifyMail = AsyncWrapper(
       throw new ApiError(500, "Failed to store OTP in db!");
     }
 
-    const sendMail = await handleMailSend(
-      email,
-      emailVerificationSubject,
-      emailVerificationContent(otp)
-    );
+    const { subject, body } = (() => {
+      switch (action) {
+        case "VERIFY-EMAIL":
+          return {
+            subject: emailVerificationSubject,
+            body: emailVerificationContent(otp),
+          };
+        case "PASS-RESET":
+          return {
+            subject: "Password Reset Otp Email",
+            body: `<h1>${otp}</h1>.`,
+          };
+        default:
+          throw new ApiError(504, "Invalid action specified!");
+      }
+    })();
+
+    const sendMail = await handleMailSend(email, subject, body);
     if (sendMail.accepted.length === 0) {
       throw new ApiError(504, "Failed to send mail!");
     }
 
-    return res.status(201).json(
-      new ApiResponse(201, "Otp Sent Successfully!", {
-        email: sendMail.accepted[0],
-      })
-    );
+    return sendMail.accepted[0];
+  } catch (error) {
+    throw new ApiError(500, "Error sending Otp email .. " + error);
   }
-);
+};
+
+const sendOtpMail = AsyncWrapper(async (req: Request, res: Response) => {
+  const { email, action }: OtpVerifyProps = req.body;
+
+  const getReceiverEmail = await sendEmailVerifyMail(email, action);
+
+  return res.status(201).json(
+    new ApiResponse(201, "Otp Sent Successfully!", {
+      email: getReceiverEmail,
+    })
+  );
+});
 
 const verifyOtp = AsyncWrapper(async (req: Request, res: Response) => {
   const { clientOtp, email }: { clientOtp: string; email: string } = req.body;
@@ -67,4 +97,4 @@ const verifyOtp = AsyncWrapper(async (req: Request, res: Response) => {
     .json(new ApiResponse(201, "Otp verified Successfully!", { email }));
 });
 
-export { sendEmailVerifyMail, verifyOtp };
+export { sendEmailVerifyMail, sendOtpMail, verifyOtp };

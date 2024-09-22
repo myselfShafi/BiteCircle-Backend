@@ -7,11 +7,15 @@ const userSchema: Schema<UserOptions> = new Schema(
   {
     userName: {
       type: Schema.Types.String,
-      required: [true, "Username is required!"],
       unique: true,
       lowercase: true,
       trim: true,
       index: true,
+    },
+    isUsernameModified: {
+      // allow username change only once
+      type: Schema.Types.Boolean,
+      default: false,
     },
     email: {
       type: Schema.Types.String,
@@ -42,6 +46,10 @@ const userSchema: Schema<UserOptions> = new Schema(
     refreshToken: {
       type: Schema.Types.String,
     },
+    isVerifiedEmail: {
+      type: Schema.Types.Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );
@@ -51,12 +59,31 @@ userSchema.pre("save", async function (next) {
     if (this.isModified("passwordHash")) {
       this.passwordHash = await bcrypt.hash(this.passwordHash, 10);
     }
-    if (this.isModified("userName") && this.userName) {
-      this.userName = this.userName.replace(/\s+/g, "_"); // replacing space with underscores
+    if (this.isNew) {
+      let baseName = this.fullName.toLowerCase().replace(/\s+/g, "_"); // replacing space with underscores
+      let matchingUserName = await UserModel.find({
+        userName: { $regex: baseName },
+      });
+
+      if (matchingUserName.length === 0) {
+        this.userName = baseName;
+      } else {
+        let newUserName = baseName;
+        // using set [O(1)] instead of just map[o(n)] for time complexity, faster search result
+        const existingUserNames = new Set(
+          matchingUserName.map((user) => user.userName)
+        );
+        let count = 1;
+        while (existingUserNames.has(newUserName)) {
+          count++;
+          newUserName = `${baseName}${count}`;
+        }
+        this.userName = newUserName;
+      }
     }
     next();
   } catch (error) {
-    console.log("password hashing error ..", error);
+    console.log("User Pre-hook error ..", error);
   }
 });
 

@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import { FileUpload } from "../../types";
 import {
   DeleteMediaFromCloudinary,
   UploadMediaToCloudinary,
@@ -12,6 +11,7 @@ import ApiError from "../utils/helpers/ApiError";
 import ApiResponse from "../utils/helpers/ApiResponse";
 import AsyncWrapper from "../utils/helpers/AsyncWrapper";
 import { GenerateAccessAndRefreshTokens } from "../utils/tokens";
+import { sendEmailVerifyMail } from "./otp.controller";
 
 const cookieOptions = {
   httpOnly: true,
@@ -19,11 +19,11 @@ const cookieOptions = {
 };
 
 const SignupUser = AsyncWrapper(async (req: Request, res: Response) => {
-  const { userName, email, fullName, passwordHash, bio } = req.body;
+  const { email, fullName, passwordHash } = req.body;
 
   // validating - not empty
   if (
-    [userName, email, fullName, passwordHash].some(
+    [email, fullName, passwordHash].some(
       (field) => !field || field?.trim() === ""
     )
   ) {
@@ -31,25 +31,9 @@ const SignupUser = AsyncWrapper(async (req: Request, res: Response) => {
   }
 
   // checking if user already exists
-  const isExistingUser = await UserModel.findOne({
-    $or: [{ userName }, { email }],
-  });
+  const isExistingUser = await UserModel.findOne({ email });
   if (isExistingUser) {
-    throw new ApiError(409, "Username or Email already registered!");
-  }
-
-  // check for avatar, optional - display upload screen for new user registers
-  const files = req.files as FileUpload;
-  const avatarPath = files?.avatar?.[0]?.path;
-  const coverImagePath = files?.coverImage?.[0]?.path;
-
-  let avatarFile, coverImageFile;
-
-  if (avatarPath) {
-    avatarFile = await UploadMediaToCloudinary(avatarPath);
-  }
-  if (coverImagePath) {
-    coverImageFile = await UploadMediaToCloudinary(coverImagePath);
+    throw new ApiError(409, "User with Email already exists!");
   }
 
   let createUser;
@@ -57,26 +41,22 @@ const SignupUser = AsyncWrapper(async (req: Request, res: Response) => {
   // upload user to mongodb
   try {
     createUser = await UserModel.create({
-      userName,
       email,
       fullName,
       passwordHash,
-      avatar: avatarFile,
-      coverImage: coverImageFile,
-      bio,
     });
   } catch (error) {
-    console.log("Mongo error ....", error);
+    console.log("Cannot register user .. ", error);
   }
-
   if (!createUser) {
     throw new ApiError(500, "Cannot register user! Try again.");
   }
 
+  await sendEmailVerifyMail(email, "VERIFY-EMAIL");
+
   const getUser = await UserModel.findById(createUser._id).select(
     "-passwordHash"
   );
-
   if (!getUser) {
     throw new ApiError(500, "User not found! Try again.");
   }
@@ -149,20 +129,36 @@ const LogoutUser = AsyncWrapper(async (req: Request, res: Response) => {
 });
 
 const UpdateUser = AsyncWrapper(async (req: Request, res: Response) => {
-  const { fullName, bio }: UserOptions = req.body;
+  const { userName, fullName, bio }: UserOptions = req.body;
+  let updateFields: Partial<UserOptions> = {};
 
-  // if user tries to send empty field
-  if (fullName === "" || bio === "") {
-    throw new ApiError(400, "All fields are required");
+  const getUserToUpdate = await UserModel.findById(req.user?._id);
+
+  if (!getUserToUpdate) {
+    throw new ApiError(404, "User not found!");
   }
 
-  const getUserToUpdate = await UserModel.findByIdAndUpdate(
+  // if username modification limit reached
+  if (getUserToUpdate?.isUsernameModified) {
+    throw new ApiError(400, "Username already modified, cannot change again!");
+  }
+
+  // if user tries to send empty field
+  if ([userName, fullName].some((field) => !field || field?.trim() === "")) {
+    throw new ApiError(400, "All fields are required!");
+  }
+
+  if (userName) {
+    updateFields.userName = userName;
+    updateFields.isUsernameModified = true;
+  }
+  if (fullName) updateFields.fullName = fullName;
+  if (bio) updateFields.bio = bio;
+
+  const updatedUser = await UserModel.findByIdAndUpdate(
     req.user?._id,
     {
-      $set: {
-        fullName,
-        bio,
-      },
+      $set: updateFields,
     },
     {
       new: true,
@@ -171,7 +167,7 @@ const UpdateUser = AsyncWrapper(async (req: Request, res: Response) => {
 
   return res.status(200).json(
     new ApiResponse(200, "User Updated successfully ..", {
-      user: getUserToUpdate,
+      user: updatedUser,
     })
   );
 });
