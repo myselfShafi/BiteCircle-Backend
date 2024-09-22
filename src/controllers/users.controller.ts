@@ -211,7 +211,7 @@ const UpdateAvatar = AsyncWrapper(async (req: Request, res: Response) => {
   ).select("-passwordHash");
 
   // remove previous avatar
-  if (updateAvatar && req.user) {
+  if (updateAvatar && req.user?.avatar.publicId) {
     await DeleteMediaFromCloudinary(req.user?.avatar.publicId);
   }
 
@@ -257,7 +257,7 @@ const UpdateCoverImage = AsyncWrapper(async (req: Request, res: Response) => {
   ).select("-passwordHash");
 
   // remove previous avatar
-  if (updateCoverImage && req.user) {
+  if (updateCoverImage && req.user?.coverImage.publicId) {
     await DeleteMediaFromCloudinary(req.user?.coverImage.publicId);
   }
 

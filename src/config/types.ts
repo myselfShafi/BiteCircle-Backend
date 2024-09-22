@@ -53,3 +53,9 @@ export interface LocalFileType {
   path: string;
   size: number;
 }
+
+export interface OtpOptions extends Document {
+  _id: Types.ObjectId;
+  otp: string;
+  email: string;
+}

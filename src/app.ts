@@ -15,6 +15,7 @@ app.use(cookieParser()); // Parse Cookie header and populate req.cookies with an
 import commentRouter from "./routers/comments.route";
 import followRouter from "./routers/follows.route";
 import LikeRouter from "./routers/likes.route";
+import OtpRouter from "./routers/otp.route";
 import postRouter from "./routers/posts.route";
 import userRouter from "./routers/users.route";
 
@@ -23,3 +24,4 @@ app.use("/api/posts", postRouter);
 app.use("/api/comments", commentRouter);
 app.use("/api/likes", LikeRouter);
 app.use("/api/follows", followRouter);
+app.use("/api/otp", OtpRouter);
