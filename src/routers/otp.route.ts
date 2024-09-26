@@ -1,10 +1,15 @@
 import { Router } from "express";
-import { sendEmailVerifyMail, verifyOtp } from "../controllers/otp.controller";
+import {
+  sendOtpMail,
+  verifyNewEmail,
+  verifyPass,
+} from "../controllers/otp.controller";
 
 const OtpRouter = Router();
 
-OtpRouter.route("/send-emailOtp").post(sendEmailVerifyMail);
+OtpRouter.route("/send-emailOtp").post(sendOtpMail);
 
-OtpRouter.route("/verify-otp").post(verifyOtp);
+OtpRouter.route("/verify-emailOtp").post(verifyNewEmail);
+OtpRouter.route("/verify-pwdOtp").post(verifyPass);
 
 export default OtpRouter;

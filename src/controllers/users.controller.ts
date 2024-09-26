@@ -52,7 +52,7 @@ const SignupUser = AsyncWrapper(async (req: Request, res: Response) => {
     throw new ApiError(500, "Cannot register user! Try again.");
   }
 
-  await sendEmailVerifyMail(email, "VERIFY-EMAIL");
+  await sendEmailVerifyMail(fullName, email, "VERIFY-EMAIL");
 
   const getUser = await UserModel.findById(createUser._id).select(
     "-passwordHash"
@@ -207,7 +207,7 @@ const UpdateAvatar = AsyncWrapper(async (req: Request, res: Response) => {
   ).select("-passwordHash");
 
   // remove previous avatar
-  if (updateAvatar && req.user?.avatar.publicId) {
+  if (updateAvatar && req.user?.avatar) {
     await DeleteMediaFromCloudinary(req.user?.avatar.publicId);
   }
 
@@ -253,7 +253,7 @@ const UpdateCoverImage = AsyncWrapper(async (req: Request, res: Response) => {
   ).select("-passwordHash");
 
   // remove previous avatar
-  if (updateCoverImage && req.user?.coverImage.publicId) {
+  if (updateCoverImage && req.user?.coverImage) {
     await DeleteMediaFromCloudinary(req.user?.coverImage.publicId);
   }
 
@@ -320,10 +320,41 @@ const getCurrentUser = AsyncWrapper(async (req: Request, res: Response) => {
     .json(new ApiResponse(200, "User fetched successfully ..", user));
 });
 
+const resetUserPassword = AsyncWrapper(async (req: Request, res: Response) => {
+  const { newPassword }: { newPassword: string } = req.body;
+  if (!newPassword) {
+    throw new ApiError(401, "New Password is required!");
+  }
+
+  const getExistingUser = await UserModel.findById(req.user?._id);
+  const isSameOldPassword = await getExistingUser?.checkPassword(newPassword);
+  if (isSameOldPassword) {
+    throw new ApiError(404, "New Password can't be same as old password!");
+  }
+
+  const updatePassword = await UserModel.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        passwordHash: newPassword,
+      },
+    },
+    { new: true }
+  );
+  if (!updatePassword) {
+    throw new ApiError(500, "Cannot update password!");
+  }
+
+  return res
+    .status(201)
+    .json(new ApiResponse(201, "Password reset successful!", {}));
+});
+
 export {
   getCurrentUser,
   LogoutUser,
   regenerateAccessToken,
+  resetUserPassword,
   SigninUser,
   SignupUser,
   UpdateAvatar,

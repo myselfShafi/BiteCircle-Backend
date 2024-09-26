@@ -6,9 +6,12 @@ const otpSchema: Schema<OtpOptions> = new Schema(
     otp: {
       type: Schema.Types.String,
       required: [true, "Otp is required!"],
+      trim: true,
     },
     email: {
       type: Schema.Types.String,
+      lowercase: true,
+      trim: true,
       required: [true, "Verification Email is required!"],
     },
   },

@@ -3,6 +3,7 @@ import {
   getCurrentUser,
   LogoutUser,
   regenerateAccessToken,
+  resetUserPassword,
   SigninUser,
   SignupUser,
   UpdateAvatar,
@@ -14,13 +15,7 @@ import handleUpload from "../middlewares/multer";
 
 const userRouter = Router();
 
-userRouter.route("/signup").post(
-  handleUpload.fields([
-    { name: "avatar", maxCount: 1 },
-    { name: "coverImage", maxCount: 1 },
-  ]),
-  SignupUser
-);
+userRouter.route("/signup").post(SignupUser);
 
 userRouter.route("/login").post(SigninUser);
 userRouter.route("/logout").post(VerifyUserCookies, LogoutUser);
@@ -35,5 +30,6 @@ userRouter
   .route("/authenticate-user")
   .get(VerifyUserCookies, getCurrentUser)
   .post(regenerateAccessToken);
+userRouter.route("/reset-pass").post(VerifyUserCookies, resetUserPassword);
 
 export default userRouter;

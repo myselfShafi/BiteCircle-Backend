@@ -28,7 +28,7 @@ const handleMailSend = async (
       html: mailBody,
     };
     const sendMail = await transporter.sendMail(mailOptions);
-    if (!sendMail) {
+    if (sendMail.rejected.length > 0) {
       throw new ApiError(500, "Failed to send mail!");
     }
     return sendMail;
